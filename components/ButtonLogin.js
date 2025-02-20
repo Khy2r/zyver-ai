@@ -1,1 +1,0 @@
-<button className="btn btn-primary">Login</button>

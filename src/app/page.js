@@ -1,6 +1,6 @@
 'use client';
 import ButtonLogin from '../components/ButtonLogin.js';
-import ButtonSignIn from '../components/ButtonSignIn.js';
+import ButtonSignIn from '../components/ButtonSignin.js';
 
 const scrollToFAQ = () => {
   const faqSection = document.getElementById('faq');
@@ -12,13 +12,18 @@ export default function Home() {
     <main className="min-h-screen bg-base-200">
 
       {/* Navigation Bar */}
-      <div className="navbar bg-base-100 px-6">
+      <div className="navbar bg-base-100">
         <div className="navbar-start">
-          <a className="text-xl font-bold">ZyverAI</a>
+          <a className="text-3xl font-bold">ZyverAI</a>
         </div>
         <div className="navbar-center flex gap-4">
-          <a className="btn btn-ghost text-base font-normal">Pricing</a>
-          <a className="btn btn-ghost text-base font-normal" onClick={scrollToFAQ}>FAQ</a>
+          <a className="btn btn-ghost text-xl">Pricing</a>
+          <button 
+            onClick={scrollToFAQ}
+            className="btn btn-ghost text-xl"
+          >
+            FAQ
+          </button>
         </div>
         <div className="navbar-end gap-4">
           <ButtonSignIn />
