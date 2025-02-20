@@ -116,7 +116,7 @@ export default function Home() {
                 Is my data secure?
               </div>
               <div className="collapse-content">
-                <p>Yes! We only process the reports posted in your designated channel and only write to your specified Google Sheet. We don't store any of your data on our servers.</p>
+                <p>Yes! We only process the reports posted in your designated channel and only write to your specified Google Sheet. We don't store any of your data on our servers!</p>
               </div>
             </div>
           </div>
