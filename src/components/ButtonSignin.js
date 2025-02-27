@@ -1,7 +1,26 @@
+'use client';
+
+import { useSession, signIn, signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+
 export default function ButtonSignIn() {
+  const { data: session } = useSession();
+  const router = useRouter();
+
+  const handleClick = () => {
+    if (session) {
+      signOut();
+    } else {
+      router.push('/login');
+    }
+  };
+
   return (
-    <button className="btn btn-neutral btn-sm">
-      Sign In
+    <button 
+      onClick={handleClick} 
+      className="btn btn-ghost"
+    >
+      {session ? 'Sign Out' : 'Sign In'}
     </button>
   );
 } 
