@@ -1,11 +1,21 @@
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import GoogleProvider from 'next-auth/providers/google';
+import { MongoDBAdapter } from '@auth/mongodb-adapter';
 import bcrypt from 'bcryptjs';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
+import clientPromise from '@/lib/mongodb-adapter';
+
+console.log("NextAuth URL:", process.env.NEXTAUTH_URL);
+console.log("Callback URL that will be used:", `${process.env.NEXTAUTH_URL}/api/auth/callback/google`);
 
 export const authOptions = {
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    }),
     CredentialsProvider({
       name: 'credentials',
       credentials: {
@@ -44,6 +54,7 @@ export const authOptions = {
       }
     })
   ],
+  adapter: MongoDBAdapter(clientPromise),
   session: {
     strategy: "jwt",
   },
@@ -51,6 +62,20 @@ export const authOptions = {
   pages: {
     signIn: '/login',
   },
+  callbacks: {
+    async session({ session, token }) {
+      if (token) {
+        session.user.id = token.id;
+      }
+      return session;
+    },
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+      }
+      return token;
+    }
+  }
 };
 
 const handler = NextAuth(authOptions);
