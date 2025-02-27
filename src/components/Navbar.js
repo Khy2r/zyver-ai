@@ -24,8 +24,12 @@ export default function Navbar({ scrollToSection }) {
         </button>
       </div>
       <div className="navbar-end gap-4 mr-4">
-        <ButtonSignIn />
-        <ButtonLogin />
+        <div className="h-9">
+          <ButtonSignIn className="btn-sm h-9" />
+        </div>
+        <div className="h-9">
+          <ButtonLogin className="btn-sm h-9" />
+        </div>
       </div>
     </div>
   );

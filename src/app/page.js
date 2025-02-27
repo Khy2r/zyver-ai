@@ -23,9 +23,9 @@ export default function Home() {
               Automatically process sales reports from Discord and organize them into Google Sheets. 
               Get instant insights into your team's performance.
             </p>
-            <button className="btn btn-primary btn-md text-lg px-8 hover:scale-110 transition-transform duration-300 shadow-lg hover:shadow-xl mt-8">
-              Get Started
-            </button>
+            <div className="mt-8">
+              <ButtonLogin className="text-base px-8 hover:scale-105 transition-transform duration-300 shadow-md hover:shadow-lg" />
+            </div>
           </div>
         </div>
       </div>

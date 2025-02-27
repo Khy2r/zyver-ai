@@ -3,7 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
-export default function ButtonLogin() {
+export default function ButtonLogin({ className = '' }) {
   const { data: session } = useSession();
   const router = useRouter();
 
@@ -18,7 +18,7 @@ export default function ButtonLogin() {
   return (
     <button 
       onClick={handleClick} 
-      className="btn btn-primary"
+      className={`btn btn-primary ${className}`}
     >
       {session ? 'Dashboard' : 'Get Started'}
     </button>

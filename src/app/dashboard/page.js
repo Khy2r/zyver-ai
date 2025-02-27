@@ -1,4 +1,5 @@
 'use client';
+import { useSession } from 'next-auth/react';
 import ButtonLogin from '../../components/ButtonLogin.js';
 import ButtonSignIn from '../../components/ButtonSignin.js';
 
@@ -8,14 +9,22 @@ const scrollToFAQ = () => {
 }
 
 export default function Dashboard() {
+  const { data: session, status } = useSession();
+  
+  if (status === "loading") {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
   return (
     <main className="min-h-screen bg-base-200 p-8">
       {/* Dashboard Header */}
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Dashboard</h1>
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-center">
+          <div className="text-sm">
+            Welcome, <span className="font-bold">{session?.user?.name}</span>
+          </div>
           <button className="btn btn-ghost">Settings</button>
-          <button className="btn btn-ghost">Profile</button>
         </div>
       </div>
 

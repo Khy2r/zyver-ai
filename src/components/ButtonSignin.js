@@ -3,7 +3,7 @@
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
-export default function ButtonSignIn() {
+export default function ButtonSignIn({ className = '' }) {
   const { data: session } = useSession();
   const router = useRouter();
 
@@ -18,7 +18,7 @@ export default function ButtonSignIn() {
   return (
     <button 
       onClick={handleClick} 
-      className="btn btn-ghost"
+      className={`btn btn-ghost ${className}`}
     >
       {session ? 'Sign Out' : 'Sign In'}
     </button>
