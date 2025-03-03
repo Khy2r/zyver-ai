@@ -1,0 +1,7 @@
+Name: Test User
+Date: 2023-11-15
+Outreach Sent: 100
+Replies: 20
+Follow ups: 15
+Proposed Calls: 10
+Booked calls: 5

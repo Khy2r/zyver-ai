@@ -18,6 +18,34 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [reports, setReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [goals, setGoals] = useState({
+    outreach: { target: 500, current: 350 },
+    replies: { target: 75, current: 52 },
+    booked: { target: 25, current: 18 }
+  });
+  const [notifications, setNotifications] = useState([]);
+  const [hasUnread, setHasUnread] = useState(false);
+  const [discordConnected, setDiscordConnected] = useState(false);
+  const [discordChannelId, setDiscordChannelId] = useState('');
+  const [discordVerifying, setDiscordVerifying] = useState(false);
+  const [discordVerified, setDiscordVerified] = useState(false);
+  const [googleConnected, setGoogleConnected] = useState(false);
+  const [googleSheetUrl, setGoogleSheetUrl] = useState('');
+  const [sheetName, setSheetName] = useState('');
+  const [googleVerifying, setGoogleVerifying] = useState(false);
+  const [googleVerified, setGoogleVerified] = useState(false);
+  const [reportFormat, setReportFormat] = useState('');
+  const [processingSchedule, setProcessingSchedule] = useState('real-time');
+  const [sendNotifications, setSendNotifications] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [configSaved, setConfigSaved] = useState(false);
+  const [testReport, setTestReport] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processedResult, setProcessedResult] = useState(null);
+  const [showTestSection, setShowTestSection] = useState(false);
+  const [processError, setProcessError] = useState(null);
+  const [toastMessage, setToastMessage] = useState('');
+  const [showToast, setShowToast] = useState(false);
   
   // Fetch reports data
   useEffect(() => {
@@ -42,6 +70,20 @@ export default function Dashboard() {
     };
 
     fetchReports();
+  }, []);
+
+  useEffect(() => {
+    // Simulate getting notifications
+    const fakeNotifications = [
+      { id: 1, text: "John added a new report", time: "2 min ago", read: false },
+      { id: 2, text: "Sarah booked 3 new calls", time: "1 hour ago", read: false },
+      { id: 3, text: "Weekly report is ready", time: "5 hours ago", read: true }
+    ];
+    
+    setNotifications(fakeNotifications);
+    setHasUnread(fakeNotifications.some(n => !n.read));
+    
+    // Later you'd replace this with a real-time connection
   }, []);
 
   // Prepare chart data
@@ -88,6 +130,269 @@ export default function Dashboard() {
         backgroundColor: 'rgba(255, 99, 132, 0.5)',
       },
     ],
+  };
+
+  // Update the Discord verification function
+  const verifyDiscordChannel = async () => {
+    setDiscordVerifying(true);
+    try {
+      const response = await fetch('/api/discord/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          channelId: discordChannelId,
+          token: 'demo-token' // In production, use actual token
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setDiscordVerified(true);
+        // You could store additional data like channelName if needed
+      } else {
+        alert(`Verification failed: ${data.error}`);
+      }
+    } catch (error) {
+      console.error("Discord verification error:", error);
+      alert("Failed to verify Discord channel. Please try again.");
+    } finally {
+      setDiscordVerifying(false);
+    }
+  };
+
+  // Update the Google Sheets verification function
+  const verifyGoogleSheet = async () => {
+    setGoogleVerifying(true);
+    try {
+      const response = await fetch('/api/sheets/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          sheetUrl: googleSheetUrl
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setGoogleVerified(true);
+        // If the API returns available sheets, you could populate a dropdown
+        if (data.availableSheets && data.availableSheets.length > 0) {
+          setSheetName(data.availableSheets[0]);
+        }
+      } else {
+        alert(`Verification failed: ${data.error}`);
+      }
+    } catch (error) {
+      console.error("Google Sheets verification error:", error);
+      alert("Failed to verify Google Sheet. Please try again.");
+    } finally {
+      setGoogleVerifying(false);
+    }
+  };
+
+  // Update the process report function
+  const processReport = async () => {
+    setIsProcessing(true);
+    setProcessedResult(null);
+    
+    try {
+      console.log("Processing report:", testReport);
+      
+      const response = await fetch('/api/process', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ report: testReport }),
+      });
+      
+      const data = await response.json();
+      
+      console.log("Processed data:", data);
+      
+      if (data.error) {
+        setToastMessage(`Error: ${data.error}`);
+        setShowToast(true);
+      } else {
+        // Ensure all required fields are present and in the correct format
+        const formattedResult = {
+          date: data.date || new Date().toLocaleDateString(),
+          name: data.name || 'Unknown',
+          outreach_sent: parseInt(data.outreach_sent) || 0,
+          replies: parseInt(data.replies) || 0,
+          follow_ups: parseInt(data.follow_ups) || 0,
+          proposed_calls: parseInt(data.proposed_calls) || 0,
+          booked_calls: parseInt(data.booked_calls) || 0,
+          reply_rate: data.reply_rate || 0,
+          booking_rate: data.booking_rate || 0
+        };
+        
+        console.log("Formatted result:", formattedResult);
+        setProcessedResult(formattedResult);
+        setToastMessage('Report processed successfully!');
+        setShowToast(true);
+      }
+    } catch (error) {
+      console.error("Error processing report:", error);
+      setToastMessage('Failed to process report: ' + (error.message || 'Unknown error'));
+      setShowToast(true);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Update the saveToGoogleSheets function
+  const saveToGoogleSheets = async () => {
+    if (!processedResult || !googleVerified) {
+      return;
+    }
+    
+    setIsSaving(true);
+    
+    try {
+      console.log("Saving to Google Sheets with debug approach...");
+      console.log("Original processed result:", processedResult);
+      
+      // Format the data exactly like in the debug function
+      const formattedData = {
+        date: processedResult.date || new Date().toLocaleDateString(),
+        name: processedResult.name || 'Unknown',
+        outreach_sent: parseInt(processedResult.outreach_sent) || 0,
+        replies: parseInt(processedResult.replies) || 0,
+        follow_ups: parseInt(processedResult.follow_ups) || 0,
+        proposed_calls: parseInt(processedResult.proposed_calls) || 0,
+        booked_calls: parseInt(processedResult.booked_calls) || 0
+      };
+      
+      console.log("Formatted data:", formattedData);
+      
+      const spreadsheetId = googleSheetUrl.split('/d/')[1]?.split('/')[0];
+      console.log("Spreadsheet ID:", spreadsheetId);
+      console.log("Sheet name:", sheetName || 'Sheet1');
+      
+      // Use the debug endpoint since we know it works
+      const response = await fetch('/api/sheets/debug', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: formattedData,
+          spreadsheetId: spreadsheetId,
+          sheetName: sheetName || 'Sheet1'
+        }),
+      });
+      
+      const responseText = await response.text();
+      console.log("Raw response:", responseText);
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error("Failed to parse response:", e);
+        alert('Failed to parse server response');
+        return;
+      }
+      
+      if (data.success) {
+        setToastMessage(`Report saved to Google Sheets! Updated range: ${data.updatedRange}`);
+        setShowToast(true);
+      } else {
+        setToastMessage(`Failed to save: ${data.error}`);
+        setShowToast(true);
+      }
+    } catch (error) {
+      console.error("Error saving to sheets:", error);
+      setToastMessage('Failed to save to Google Sheets: ' + (error.message || 'Unknown error'));
+      setShowToast(true);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Add this function to test the Google Sheets API
+  const testGoogleSheets = async () => {
+    try {
+      const response = await fetch('/api/sheets/test');
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(`Google Sheets API is working! Spreadsheet: ${data.spreadsheetTitle}`);
+      } else {
+        alert(`Test failed: ${data.error}`);
+      }
+    } catch (error) {
+      console.error("Test error:", error);
+      alert('Test failed: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  // Update the debugGoogleSheets function
+  const debugGoogleSheets = async () => {
+    try {
+      console.log("Debugging Google Sheets integration...");
+      
+      // Use a test data object if no processed result is available
+      const testData = processedResult || {
+        date: new Date().toLocaleDateString(),
+        name: "Test User",
+        outreach_sent: 100,
+        replies: 20,
+        follow_ups: 30,
+        proposed_calls: 10,
+        booked_calls: 5
+      };
+      
+      console.log("Test data:", testData);
+      
+      // Use a test spreadsheet ID if none is provided
+      const spreadsheetId = googleSheetUrl ? 
+        googleSheetUrl.split('/d/')[1]?.split('/')[0] : 
+        "1xL8HDCKSPiCzj57urjZigVPGWtNU7YTb7dDnxUj7Hl0"; // Replace with your test spreadsheet ID
+      
+      console.log("Spreadsheet ID:", spreadsheetId);
+      console.log("Sheet name:", sheetName || 'Sheet1');
+      
+      const response = await fetch('/api/sheets/debug', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: testData,
+          spreadsheetId: spreadsheetId,
+          sheetName: sheetName || 'Sheet1'
+        }),
+      });
+      
+      const responseText = await response.text();
+      console.log("Raw response:", responseText);
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error("Failed to parse response:", e);
+        alert('Failed to parse server response');
+        return;
+      }
+      
+      if (data.success) {
+        alert(`Debug successful! Updated range: ${data.updatedRange}`);
+      } else {
+        alert(`Debug failed: ${data.error}\n\nDetails: ${JSON.stringify(data.details)}`);
+      }
+    } catch (error) {
+      console.error("Debug error:", error);
+      alert('Debug failed: ' + (error.message || 'Unknown error'));
+    }
   };
 
   if (status === "loading" || isLoading) {
@@ -150,6 +455,12 @@ export default function Dashboard() {
             onClick={() => setActiveTab('reports')}
           >
             Reports
+          </button>
+          <button 
+            className={`tab ${activeTab === 'integrations' ? 'tab-active' : ''}`}
+            onClick={() => setActiveTab('integrations')}
+          >
+            Integrations
           </button>
           <button 
             className={`tab ${activeTab === 'team' ? 'tab-active' : ''}`}
@@ -256,6 +567,48 @@ export default function Dashboard() {
                 </table>
               </div>
             </div>
+
+            {/* Monthly Goals */}
+            <div className="bg-base-100 rounded-lg p-6 shadow-md mb-8">
+              <h3 className="text-lg font-semibold mb-4">Monthly Goals</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span>Outreach</span>
+                    <span>{goals.outreach.current}/{goals.outreach.target}</span>
+                  </div>
+                  <progress 
+                    className="progress progress-primary w-full" 
+                    value={goals.outreach.current} 
+                    max={goals.outreach.target}
+                  ></progress>
+                </div>
+                
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span>Replies</span>
+                    <span>{goals.replies.current}/{goals.replies.target}</span>
+                  </div>
+                  <progress 
+                    className="progress progress-secondary w-full" 
+                    value={goals.replies.current} 
+                    max={goals.replies.target}
+                  ></progress>
+                </div>
+                
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span>Booked Calls</span>
+                    <span>{goals.booked.current}/{goals.booked.target}</span>
+                  </div>
+                  <progress 
+                    className="progress progress-accent w-full" 
+                    value={goals.booked.current} 
+                    max={goals.booked.target}
+                  ></progress>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -300,6 +653,491 @@ export default function Dashboard() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Integrations Tab */}
+        {activeTab === 'integrations' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-6">Connect Your Services</h2>
+            
+            {/* Connection Status Dashboard */}
+            <div className="bg-base-100 rounded-lg p-6 shadow-md mb-8">
+              <h3 className="text-xl font-bold mb-4">Connection Status</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Discord Status */}
+                <div className="bg-base-200 p-4 rounded-lg">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`w-3 h-3 rounded-full ${discordConnected ? 'bg-success' : 'bg-error'}`}></div>
+                    <h4 className="font-semibold">Discord</h4>
+                  </div>
+                  <p className="text-sm mb-2">
+                    {discordConnected 
+                      ? 'Connected to Discord' 
+                      : 'Not connected to Discord'}
+                  </p>
+                  {discordConnected && (
+                    <div className="text-xs flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${discordVerified ? 'bg-success' : 'bg-warning'}`}></div>
+                      <span>
+                        {discordVerified 
+                          ? `Channel verified: ${discordChannelId}` 
+                          : 'Channel not verified'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Google Sheets Status */}
+                <div className="bg-base-200 p-4 rounded-lg">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`w-3 h-3 rounded-full ${googleConnected ? 'bg-success' : 'bg-error'}`}></div>
+                    <h4 className="font-semibold">Google Sheets</h4>
+                  </div>
+                  <p className="text-sm mb-2">
+                    {googleConnected 
+                      ? 'Connected to Google' 
+                      : 'Not connected to Google Sheets'}
+                  </p>
+                  {googleConnected && (
+                    <div className="text-xs flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${googleVerified ? 'bg-success' : 'bg-warning'}`}></div>
+                      <span>
+                        {googleVerified 
+                          ? `Sheet verified: ${sheetName || 'Default'}` 
+                          : 'Sheet not verified'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* AI Configuration Status */}
+                <div className="bg-base-200 p-4 rounded-lg">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`w-3 h-3 rounded-full ${configSaved ? 'bg-success' : 'bg-warning'}`}></div>
+                    <h4 className="font-semibold">AI Configuration</h4>
+                  </div>
+                  <p className="text-sm mb-2">
+                    {configSaved 
+                      ? 'Configuration saved' 
+                      : 'Configuration not saved'}
+                  </p>
+                  {reportFormat && (
+                    <div className="text-xs">
+                      Format: {reportFormat === 'standard' ? 'Standard' : 'Custom'}<br />
+                      Schedule: {processingSchedule === 'real-time' ? 'Real-time' : 
+                                processingSchedule === 'hourly' ? 'Hourly' : 
+                                processingSchedule === 'daily' ? 'Daily' : 'Weekly'}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Overall Status */}
+              <div className="mt-6 p-3 rounded-lg border border-base-300">
+                <div className="flex items-center gap-3">
+                  <div className={`w-4 h-4 rounded-full ${
+                    (discordConnected && discordVerified && googleConnected && googleVerified && configSaved) 
+                      ? 'bg-success' 
+                      : 'bg-warning'
+                  }`}></div>
+                  <div>
+                    <h4 className="font-semibold">System Status</h4>
+                    <p className="text-sm">
+                      {(discordConnected && discordVerified && googleConnected && googleVerified && configSaved)
+                        ? 'All systems connected and ready' 
+                        : 'Setup incomplete - finish configuration to enable processing'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Discord Connection */}
+            <div className="bg-base-100 rounded-lg p-6 shadow-md mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-[#5865F2] rounded-full flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 127.14 96.36" fill="#FFFFFF">
+                      <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">Discord</h3>
+                    <p className="text-sm opacity-70">Connect to your Discord server to process sales reports</p>
+                  </div>
+                </div>
+                <button 
+                  className={`btn ${discordConnected ? 'btn-success' : 'btn-primary'}`}
+                  onClick={() => {
+                    // In a real app, this would redirect to Discord OAuth
+                    setDiscordConnected(!discordConnected);
+                  }}
+                >
+                  {discordConnected ? 'Connected ✓' : 'Connect Discord'}
+                </button>
+              </div>
+              
+              <div className="form-control w-full">
+                <label className="label">
+                  <span className="label-text">Discord Channel ID</span>
+                </label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="Enter channel ID (e.g., 123456789012345678)" 
+                    className={`input input-bordered w-full ${discordVerified ? 'input-success' : ''}`}
+                    value={discordChannelId}
+                    onChange={(e) => setDiscordChannelId(e.target.value)}
+                    disabled={!discordConnected}
+                  />
+                  <button 
+                    className={`btn ${discordVerified ? 'btn-success' : ''}`}
+                    onClick={verifyDiscordChannel}
+                    disabled={!discordConnected || !discordChannelId || discordVerifying}
+                  >
+                    {discordVerifying ? 
+                      <span className="loading loading-spinner loading-xs"></span> : 
+                      discordVerified ? 'Verified ✓' : 'Verify'}
+                  </button>
+                </div>
+                <label className="label">
+                  <span className="label-text-alt">The channel where your sales team posts their reports</span>
+                </label>
+              </div>
+            </div>
+            
+            {/* Google Sheets Connection */}
+            <div className="bg-base-100 rounded-lg p-6 shadow-md mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-[#0F9D58] rounded-full flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#FFFFFF">
+                      <path d="M19.5,3H14.5V7H19.5V3M14.5,9H19.5V13H14.5V9M9.5,3H4.5V13H9.5V3M9.5,15H4.5V19H9.5V15M19.5,15H14.5V19H19.5V15M12,3H10.5V7H12V3M12,9H10.5V13H12V9M12,15H10.5V19H12V15Z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">Google Sheets</h3>
+                    <p className="text-sm opacity-70">Connect to Google Sheets to organize your data</p>
+                  </div>
+                </div>
+                <button 
+                  className={`btn ${googleConnected ? 'btn-success' : 'btn-primary'}`}
+                  onClick={() => {
+                    // In a real app, this would redirect to Google OAuth
+                    setGoogleConnected(!googleConnected);
+                  }}
+                >
+                  {googleConnected ? 'Connected ✓' : 'Connect Google'}
+                </button>
+              </div>
+              
+              <div className="form-control w-full mb-4">
+                <label className="label">
+                  <span className="label-text">Google Sheet URL</span>
+                </label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="https://docs.google.com/spreadsheets/d/..." 
+                    className={`input input-bordered w-full ${googleVerified ? 'input-success' : ''}`}
+                    value={googleSheetUrl}
+                    onChange={(e) => setGoogleSheetUrl(e.target.value)}
+                    disabled={!googleConnected}
+                  />
+                  <button 
+                    className={`btn ${googleVerified ? 'btn-success' : ''}`}
+                    onClick={verifyGoogleSheet}
+                    disabled={!googleConnected || !googleSheetUrl || googleVerifying}
+                  >
+                    {googleVerifying ? 
+                      <span className="loading loading-spinner loading-xs"></span> : 
+                      googleVerified ? 'Verified ✓' : 'Verify'}
+                  </button>
+                </div>
+                <label className="label">
+                  <span className="label-text-alt">The Google Sheet where your data will be organized</span>
+                </label>
+              </div>
+              
+              <div className="form-control w-full">
+                <label className="label">
+                  <span className="label-text">Sheet Name</span>
+                </label>
+                <input 
+                  type="text" 
+                  placeholder="e.g., Sales Reports" 
+                  className="input input-bordered w-full"
+                  value={sheetName}
+                  onChange={(e) => setSheetName(e.target.value)}
+                  disabled={!googleConnected || !googleVerified}
+                />
+                <label className="label">
+                  <span className="label-text-alt">The specific sheet tab to use</span>
+                </label>
+              </div>
+            </div>
+            
+            {/* AI Configuration */}
+            <div className="bg-base-100 rounded-lg p-6 shadow-md">
+              <h3 className="text-xl font-bold mb-4">AI Configuration</h3>
+              <p className="mb-4">Configure how the AI processes your sales reports</p>
+              
+              <div className="form-control w-full mb-4">
+                <label className="label">
+                  <span className="label-text">Report Format</span>
+                </label>
+                <select 
+                  className="select select-bordered w-full"
+                  value={reportFormat}
+                  onChange={(e) => setReportFormat(e.target.value)}
+                  disabled={!discordVerified || !googleVerified}
+                >
+                  <option value="" disabled>Select a format</option>
+                  <option value="standard">Standard Format</option>
+                  <option value="custom">Custom Format</option>
+                </select>
+              </div>
+              
+              {reportFormat === 'custom' && (
+                <div className="form-control w-full mb-4">
+                  <label className="label">
+                    <span className="label-text">Custom Format Template</span>
+                  </label>
+                  <textarea 
+                    className="textarea textarea-bordered h-24"
+                    placeholder="Example: Name: {name}, Outreach: {outreach}, Replies: {replies}, Booked: {booked}"
+                  ></textarea>
+                  <label className="label">
+                    <span className="label-text-alt">Use {variable} to define fields to extract</span>
+                  </label>
+                </div>
+              )}
+              
+              <div className="form-control w-full mb-4">
+                <label className="label">
+                  <span className="label-text">Processing Schedule</span>
+                </label>
+                <select 
+                  className="select select-bordered w-full"
+                  value={processingSchedule}
+                  onChange={(e) => setProcessingSchedule(e.target.value)}
+                  disabled={!discordVerified || !googleVerified}
+                >
+                  <option value="real-time">Real-time</option>
+                  <option value="hourly">Hourly</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                </select>
+              </div>
+              
+              <div className="form-control">
+                <label className="label cursor-pointer justify-start gap-4">
+                  <input 
+                    type="checkbox" 
+                    className="checkbox checkbox-primary"
+                    checked={sendNotifications}
+                    onChange={(e) => setSendNotifications(e.target.checked)}
+                    disabled={!discordVerified || !googleVerified}
+                  />
+                  <span className="label-text">Send notifications when reports are processed</span>
+                </label>
+              </div>
+              
+              <div className="mt-6">
+                <button 
+                  className={`btn ${configSaved ? 'btn-success' : 'btn-primary'} mr-2`}
+                  onClick={() => {
+                    setIsSaving(true);
+                    // Simulate saving
+                    setTimeout(() => {
+                      setConfigSaved(true);
+                      setIsSaving(false);
+                      
+                      // Reset success message after 3 seconds
+                      setTimeout(() => {
+                        setConfigSaved(false);
+                      }, 3000);
+                    }, 1500);
+                  }}
+                  disabled={!discordVerified || !googleVerified || !reportFormat || isSaving}
+                >
+                  {isSaving ? 
+                    <><span className="loading loading-spinner loading-xs mr-2"></span>Saving...</> : 
+                    configSaved ? 'Saved Successfully ✓' : 'Save Configuration'}
+                </button>
+                
+                {configSaved && (
+                  <span className="text-success ml-2">
+                    Configuration saved successfully!
+                  </span>
+                )}
+              </div>
+
+              {/* Test AI Processing */}
+              <div className="mt-8 border-t pt-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-lg font-semibold">Test AI Processing</h4>
+                  <button 
+                    className="btn btn-sm btn-outline"
+                    onClick={() => setShowTestSection(!showTestSection)}
+                  >
+                    {showTestSection ? 'Hide Test' : 'Show Test'}
+                  </button>
+                </div>
+                
+                {showTestSection && (
+                  <>
+                    <p className="mb-4 text-sm">
+                      Paste a sample sales report to see how the AI would process it.
+                    </p>
+                    
+                    <div className="flex justify-end mb-2">
+                      <button 
+                        className="btn btn-xs btn-outline"
+                        onClick={() => {
+                          setTestReport(
+                            "Sales Report - April 5, 2024\n" +
+                            "Name: John Smith\n" +
+                            "Outreach: 120\n" +
+                            "Replies: 18\n" +
+                            "Booked: 6\n" +
+                            "Notes: Had a great day with several promising leads!"
+                          );
+                        }}
+                      >
+                        Load Sample Report
+                      </button>
+                    </div>
+                    
+                    <div className="form-control w-full mb-4">
+                      <label className="label">
+                        <span className="label-text">Sample Report</span>
+                      </label>
+                      <textarea 
+                        className="textarea textarea-bordered h-32"
+                        placeholder="Paste a sample report here..."
+                        value={testReport}
+                        onChange={(e) => setTestReport(e.target.value)}
+                      ></textarea>
+                    </div>
+                    
+                    <div className="flex gap-2 mb-6">
+                      <button 
+                        className="btn btn-primary"
+                        onClick={processReport}
+                        disabled={!testReport || isProcessing}
+                      >
+                        {isProcessing ? 
+                          <><span className="loading loading-spinner loading-xs mr-2"></span>Processing...</> : 
+                          'Process Report'}
+                      </button>
+                      
+                      <button 
+                        className="btn btn-outline"
+                        onClick={() => setTestReport('')}
+                        disabled={!testReport || isProcessing}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    
+                    {/* Error display */}
+                    {processError && (
+                      <div className="bg-error text-error-content p-4 rounded-lg mb-6">
+                        <h5 className="font-semibold mb-2">Error Processing Report:</h5>
+                        <p>{processError}</p>
+                      </div>
+                    )}
+                    
+                    {/* Results display */}
+                    {processedResult && (
+                      <div className="bg-base-200 p-4 rounded-lg">
+                        <h5 className="font-semibold mb-2">Processed Result:</h5>
+                        <div className="overflow-x-auto">
+                          <table className="table table-sm w-full">
+                            <thead>
+                              <tr>
+                                <th>Field</th>
+                                <th>Extracted Value</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {Object.entries(processedResult).map(([key, value]) => (
+                                <tr key={key}>
+                                  <td className="capitalize">{key.replace(/([A-Z])/g, ' $1')}</td>
+                                  <td>{value}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        
+                        <div className="mt-4 flex justify-between items-center">
+                          <span className="text-success flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            Successfully processed
+                          </span>
+                          <div className="flex gap-2">
+                            <button 
+                              className="btn btn-sm btn-outline"
+                              onClick={() => {
+                                // Copy to clipboard
+                                const text = Object.entries(processedResult)
+                                  .map(([key, value]) => `${key}: ${value}`)
+                                  .join('\n');
+                                navigator.clipboard.writeText(text);
+                                alert('Copied to clipboard!');
+                              }}
+                            >
+                              Copy
+                            </button>
+                            <button 
+                              className="btn btn-sm btn-primary"
+                              onClick={saveToGoogleSheets}
+                              disabled={!googleVerified || !processedResult || isSaving}
+                            >
+                              {isSaving ? 
+                                <><span className="loading loading-spinner loading-xs mr-2"></span>Saving...</> : 
+                                'Save to Sheet'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Test Google Sheets API */}
+            <div className="mt-8 border-t pt-6">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-lg font-semibold">Test Google Sheets API</h4>
+                <button 
+                  className="btn btn-sm btn-secondary"
+                  onClick={testGoogleSheets}
+                >
+                  Test Google Sheets API
+                </button>
+              </div>
+            </div>
+
+            {/* Debug Google Sheets */}
+            <div className="mt-8 border-t pt-6">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-lg font-semibold">Debug Google Sheets</h4>
+                <button 
+                  className="btn btn-sm btn-warning"
+                  onClick={debugGoogleSheets}
+                >
+                  Debug Google Sheets
+                </button>
+              </div>
             </div>
           </div>
         )}
