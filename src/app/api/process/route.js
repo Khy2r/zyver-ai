@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { processReportDirectly } from './utils';
+import path from 'path';
+import fs from 'fs';
 
 export async function POST(request) {
   try {
@@ -16,6 +18,9 @@ export async function POST(request) {
     try {
       // Process the report directly in JavaScript
       console.log("Processing report directly in JavaScript");
+      const credentials = process.env.GOOGLE_CREDENTIALS 
+        ? JSON.parse(process.env.GOOGLE_CREDENTIALS)
+        : JSON.parse(fs.readFileSync(path.join(process.cwd(), 'credentials.json'), 'utf8'));
       const processedData = processReportDirectly(report);
       console.log("Processed data:", processedData);
       
